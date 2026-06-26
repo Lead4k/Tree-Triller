@@ -1,0 +1,2791 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rastro da Escuridão - Slenderman</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            user-select: none;
+            cursor: default;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Overlays */
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.7) 100%);
+            transition: background 0.5s;
+            z-index: 11;
+        }
+
+        #vignette.danger {
+            background: radial-gradient(ellipse at center, transparent 20%, rgba(80, 0, 0, 0.85) 100%);
+        }
+
+        #vignette.dead {
+            background: radial-gradient(ellipse at center, transparent 0%, rgba(120, 0, 0, 0.95) 100%);
+        }
+
+        #flashlight-cone {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 12;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        #flashlight-cone.acesa {
+            opacity: 1;
+        }
+
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 20;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        #hud-left {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        #hud-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .hud-box {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            color: #ddd;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        .hud-box span {
+            font-weight: bold;
+        }
+
+        #lanterna-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #lanterna-icone {
+            font-size: 28px;
+        }
+
+        #bateria-container {
+            width: 120px;
+            height: 18px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #444;
+        }
+
+        #bateria-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6600, #ffcc00);
+            transition: width 0.3s;
+            border-radius: 10px;
+            width: 100%;
+        }
+
+        #bateria-bar.low {
+            background: linear-gradient(90deg, #cc0000, #ff4400);
+            animation: blink 0.6s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        #bateria-texto {
+            color: #ccc;
+            font-size: 13px;
+            font-weight: bold;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        #pecas-info {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            color: #ddd;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #pecas-info span {
+            color: #ffcc00;
+            font-size: 18px;
+        }
+
+        #nivel-info {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            color: #ff8866;
+            font-size: 13px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #sanidade-info {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            color: #88ccff;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #sanidade-bar {
+            width: 80px;
+            height: 14px;
+            background: #1a1a1a;
+            border-radius: 7px;
+            overflow: hidden;
+            border: 1px solid #444;
+        }
+
+        #sanidade-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #4488ff, #88ddff);
+            border-radius: 7px;
+            transition: width 0.5s;
+        }
+
+        #sanidade-fill.low {
+            background: linear-gradient(90deg, #ff4444, #ff8844);
+            animation: blink 0.6s infinite;
+        }
+
+        #clima-info {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            color: #aaccff;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #notas-info {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            color: #ddbb88;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #conquistas-info {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            color: #ffdd88;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        #mensagem-centro {
+            position: absolute;
+            bottom: 25%;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 16px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 20px;
+            border-radius: 20px;
+            letter-spacing: 1px;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 25;
+            opacity: 0;
+            max-width: 80%;
+        }
+
+        #mensagem-centro.visivel {
+            opacity: 1;
+        }
+
+        #mensagem-centro.perigo {
+            color: #ff6666;
+            border: 1px solid #ff4444;
+        }
+
+        #mensagem-centro.nota {
+            color: #ddbb88;
+            border: 1px solid #aa8844;
+        }
+
+        #indicador-escondido {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #66ff66;
+            font-size: 14px;
+            letter-spacing: 2px;
+            z-index: 25;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        #dica-controles {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #888;
+            font-size: 12px;
+            letter-spacing: 1px;
+            z-index: 25;
+            pointer-events: none;
+            transition: opacity 1s;
+        }
+
+        /* Game Over / Vitória */
+        #game-over-tela {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.8s;
+        }
+
+        #game-over-tela.ativo {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #game-over-tela h1 {
+            font-size: 60px;
+            color: #ff2200;
+            text-shadow: 0 0 40px #ff0000, 0 0 80px #990000;
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+        }
+
+        #game-over-tela .subtitulo {
+            color: #ccc;
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+
+        #game-over-tela .reiniciar {
+            margin-top: 30px;
+            padding: 12px 30px;
+            font-size: 18px;
+            background: #1a0000;
+            color: #ff6666;
+            border: 2px solid #ff2200;
+            border-radius: 25px;
+            cursor: pointer;
+            letter-spacing: 2px;
+            pointer-events: auto;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        #game-over-tela .reiniciar:hover {
+            background: #330000;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.4);
+        }
+
+        #vitoria-tela {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.8s;
+        }
+
+        #vitoria-tela.ativo {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #vitoria-tela h1 {
+            font-size: 50px;
+            color: #ffcc00;
+            text-shadow: 0 0 40px #ffaa00, 0 0 80px #885500;
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+            animation: glowPulse 1.5s infinite alternate;
+        }
+
+        @keyframes glowPulse {
+            0% {
+                text-shadow: 0 0 20px #ffaa00, 0 0 40px #885500;
+            }
+
+            100% {
+                text-shadow: 0 0 60px #ffdd44, 0 0 120px #aa7700;
+            }
+        }
+
+        #vitoria-tela .subtitulo {
+            color: #ddd;
+            font-size: 16px;
+            letter-spacing: 2px;
+        }
+
+        #vitoria-tela .reiniciar {
+            margin-top: 30px;
+            padding: 12px 30px;
+            font-size: 18px;
+            background: #1a1a00;
+            color: #ffcc00;
+            border: 2px solid #ffcc00;
+            border-radius: 25px;
+            cursor: pointer;
+            letter-spacing: 2px;
+            pointer-events: auto;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        #vitoria-tela .reiniciar:hover {
+            background: #333300;
+            box-shadow: 0 0 30px rgba(255, 200, 0, 0.4);
+        }
+
+        /* Menu */
+        #menu-tela {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.92);
+            pointer-events: auto;
+            transition: opacity 0.6s;
+        }
+
+        #menu-tela.escondido {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #menu-tela h1 {
+            font-size: 64px;
+            color: #ffcc88;
+            text-shadow: 0 0 30px #ff8800, 0 0 80px #441100;
+            letter-spacing: 6px;
+            margin-bottom: 8px;
+            font-weight: normal;
+        }
+
+        #menu-tela .subtitulo-menu {
+            color: #887766;
+            font-size: 16px;
+            letter-spacing: 3px;
+            margin-bottom: 30px;
+        }
+
+        .menu-botao {
+            padding: 14px 40px;
+            font-size: 20px;
+            background: transparent;
+            color: #ccaa88;
+            border: 2px solid #554433;
+            border-radius: 8px;
+            cursor: pointer;
+            letter-spacing: 3px;
+            margin: 8px 0;
+            width: 260px;
+            text-align: center;
+            transition: all 0.3s;
+            font-family: inherit;
+            pointer-events: auto;
+        }
+
+        .menu-botao:hover {
+            background: #1a1008;
+            border-color: #ff8800;
+            color: #ffcc88;
+            box-shadow: 0 0 20px rgba(255, 136, 0, 0.2);
+            letter-spacing: 5px;
+        }
+
+        .menu-botao.secundario {
+            font-size: 15px;
+            padding: 10px 30px;
+            border-color: #333;
+            color: #888;
+            width: 200px;
+        }
+
+        .menu-botao.secundario:hover {
+            border-color: #666;
+            color: #aaa;
+        }
+
+        .menu-botao.dificuldade {
+            font-size: 14px;
+            padding: 8px 20px;
+            width: 140px;
+            margin: 4px 6px;
+            display: inline-block;
+        }
+
+        .menu-botao.dificuldade.selecionado {
+            border-color: #ff8800;
+            color: #ffcc88;
+            background: #1a1008;
+        }
+
+        #dificuldade-container {
+            display: flex;
+            gap: 10px;
+            margin: 6px 0 18px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* Controles modal */
+        #controles-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 5, 0, 0.96);
+            border: 2px solid #554433;
+            border-radius: 12px;
+            padding: 30px 40px;
+            z-index: 55;
+            color: #ccbbaa;
+            letter-spacing: 1px;
+            line-height: 2;
+            font-size: 14px;
+            text-align: left;
+            pointer-events: auto;
+            display: none;
+        }
+
+        #controles-modal.visivel {
+            display: block;
+        }
+
+        #controles-modal h3 {
+            color: #ffcc88;
+            margin-bottom: 15px;
+            letter-spacing: 3px;
+            text-align: center;
+            font-size: 20px;
+        }
+
+        #controles-modal .tecla {
+            color: #ffaa44;
+            font-weight: bold;
+            display: inline-block;
+            width: 60px;
+            text-align: right;
+            margin-right: 12px;
+        }
+
+        #controles-modal button {
+            margin-top: 20px;
+            padding: 8px 25px;
+            background: #1a1008;
+            color: #ccaa88;
+            border: 1px solid #554433;
+            cursor: pointer;
+            font-family: inherit;
+            letter-spacing: 2px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            transition: 0.3s;
+        }
+
+        #controles-modal button:hover {
+            border-color: #ff8800;
+            color: #ffcc88;
+        }
+
+        #fundo-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 54;
+            pointer-events: auto;
+            display: none;
+        }
+
+        #fundo-modal.visivel {
+            display: block;
+        }
+
+        /* História */
+        #historia-tela {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 45;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.88);
+            pointer-events: auto;
+            opacity: 0;
+            transition: opacity 0.8s;
+        }
+
+        #historia-tela.visivel {
+            opacity: 1;
+        }
+
+        #historia-tela .historia-box {
+            max-width: 640px;
+            padding: 40px 50px;
+            background: rgba(20, 15, 10, 0.95);
+            border: 2px solid #554433;
+            border-radius: 16px;
+            color: #ddd;
+            font-size: 16px;
+            line-height: 1.8;
+            letter-spacing: 1px;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.9);
+        }
+
+        #historia-tela .historia-box h2 {
+            color: #ffcc88;
+            font-size: 28px;
+            margin-bottom: 20px;
+            letter-spacing: 4px;
+            font-weight: normal;
+        }
+
+        #historia-tela .historia-box p {
+            margin-bottom: 16px;
+        }
+
+        #historia-tela .historia-box .continuar {
+            margin-top: 24px;
+            padding: 10px 40px;
+            background: transparent;
+            color: #ccaa88;
+            border: 2px solid #554433;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            letter-spacing: 3px;
+            transition: 0.3s;
+            font-family: inherit;
+        }
+
+        #historia-tela .historia-box .continuar:hover {
+            border-color: #ff8800;
+            color: #ffcc88;
+            background: #1a1008;
+        }
+
+        #historia-tela .historia-box .destaque {
+            color: #ff8844;
+        }
+
+        #historia-tela .historia-box .perigo {
+            color: #ff4444;
+        }
+
+        /* Conquistas popup */
+        #conquistas-popup {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid #ffcc44;
+            border-radius: 12px;
+            padding: 15px 20px;
+            z-index: 35;
+            color: #ddd;
+            font-size: 13px;
+            max-width: 280px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        #conquistas-popup.visivel {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #conquistas-popup h4 {
+            color: #ffcc44;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+            font-size: 16px;
+        }
+
+        #conquistas-popup .conq-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        #conquistas-popup .conq-item .conq-icon {
+            font-size: 18px;
+        }
+
+        #conquistas-popup .conq-item .conq-done {
+            color: #66ff66;
+        }
+
+        #conquistas-popup .conq-item .conq-pendente {
+            color: #666;
+        }
+
+        #conquistas-popup .fechar-conq {
+            margin-top: 8px;
+            padding: 4px 12px;
+            background: #1a1008;
+            color: #ccaa88;
+            border: 1px solid #554433;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            align-self: flex-end;
+        }
+
+        #conquistas-popup .fechar-conq:hover {
+            border-color: #ff8800;
+        }
+
+        /* Notificação de conquista */
+        #conquista-notif {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid #ffcc44;
+            border-radius: 12px;
+            padding: 12px 24px;
+            z-index: 40;
+            color: #ffdd88;
+            font-size: 16px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        #conquista-notif.visivel {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game-container">
+        <!-- MENU -->
+        <div id="menu-tela">
+            <h1>RASTRO DA ESCURIDÃO</h1>
+            <div class="subtitulo-menu">Slenderman espreita na floresta...</div>
+            <div id="dificuldade-container">
+                <button class="menu-botao dificuldade" data-dificuldade="facil">🌱 Fácil</button>
+                <button class="menu-botao dificuldade selecionado" data-dificuldade="medio">🌿 Médio</button>
+                <button class="menu-botao dificuldade" data-dificuldade="dificil">🌳 Difícil</button>
+            </div>
+            <button class="menu-botao" id="btn-jogar">J O G A R</button>
+            <button class="menu-botao secundario" id="btn-controles">CONTROLES</button>
+            <button class="menu-botao secundario" id="btn-sobre">SOBRE</button>
+        </div>
+
+        <!-- HISTÓRIA -->
+        <div id="historia-tela">
+            <div class="historia-box">
+                <h2>🌲 O ACIDENTE</h2>
+                <p>
+                    Você dirigia pela estrada deserta quando o motor <span class="destaque">pifou</span>.<br>
+                    O carro parou no meio da floresta, e o silêncio foi quebrado por um <span class="perigo">uivo
+                        distante</span>.
+                </p>
+                <p>
+                    As peças do motor estão espalhadas pelo bosque.<br>
+                    Você precisa encontrá-las <span class="destaque">antes que a criatura</span> que ronda as
+                    sombras<br>
+                    <span class="perigo">descubra sua presença</span>.
+                </p>
+                <p style="font-size:14px; color:#888;">
+                    Use a lanterna com cautela — ela atrai o perigo.<br>
+                    Agache-se nos arbustos para se esconder.<br>
+                    Colete <span class="destaque">mapas</span> para localizar as peças, <span
+                        class="destaque">isqueiros</span> para fogueiras,<br>
+                    <span class="destaque">rádios</span> para distrair a criatura e <span class="destaque">notas</span>
+                    para desvendar a história.
+                </p>
+                <button class="continuar" id="btn-continuar-historia">▶ CONTINUAR</button>
+            </div>
+        </div>
+
+        <!-- FUNDO MODAL -->
+        <div id="fundo-modal"></div>
+        <div id="controles-modal">
+            <h3>⚙️ COMANDOS</h3>
+            <div><span class="tecla">W A S D</span> Mover-se</div>
+            <div><span class="tecla">SHIFT</span> Correr</div>
+            <div><span class="tecla">C</span> Agachar</div>
+            <div><span class="tecla">F</span> Lanterna</div>
+            <div><span class="tecla">E</span> Coletar / Interagir</div>
+            <div><span class="tecla">R</span> Usar rádio (se tiver)</div>
+            <div><span class="tecla">MOUSE</span> Olhar ao redor</div>
+            <div><span class="tecla">CLIQUE</span> Travar mouse</div>
+            <br>
+            <div style="color:#888; font-size:12px; text-align:center;">
+                Arbustos densos + agachado = esconderijo<br>
+                A lanterna atrai o perigo. Use com cautela.<br>
+                Itens especiais: Mapa (mostra peças), Isqueiro (fogueira repelente),<br>
+                Rádio (distrai o Slenderman por 10s), Notas (contam a história).<br>
+                Mantenha a sanidade alta para evitar alucinações.
+            </div>
+            <button id="btn-fechar-controles">FECHAR</button>
+        </div>
+
+        <!-- OVERLAY DO JOGO -->
+        <div id="overlay">
+            <div id="vignette"></div>
+            <canvas id="flashlight-cone"></canvas>
+            <div id="hud">
+                <div id="hud-left">
+                    <div class="hud-box" id="lanterna-info">
+                        <span id="lanterna-icone">💡</span>
+                        <div id="bateria-container">
+                            <div id="bateria-bar"></div>
+                        </div>
+                        <span id="bateria-texto">100%</span>
+                    </div>
+                    <div class="hud-box" id="pecas-info">🔧 Peças: <span id="pecas-contador">0/6</span></div>
+                    <div class="hud-box" id="notas-info">📜 Notas: <span id="notas-contador">0/6</span></div>
+                    <div class="hud-box" id="clima-info">🌤️ Clima: <span id="clima-texto">Calmo</span></div>
+                </div>
+                <div id="hud-right">
+                    <div class="hud-box" id="nivel-info">🌀 Nível <span id="nivel-rondante">1</span></div>
+                    <div class="hud-box" id="sanidade-info">
+                        🧠 Sanidade
+                        <div id="sanidade-bar">
+                            <div id="sanidade-fill"></div>
+                        </div>
+                        <span id="sanidade-texto">100%</span>
+                    </div>
+                    <div class="hud-box" id="conquistas-info">🏆 Conquistas (<span id="conq-count">0</span>/8)</div>
+                </div>
+            </div>
+            <div id="mensagem-centro"></div>
+            <div id="indicador-escondido">👁️ ESCONDIDO</div>
+            <div id="dica-controles">WASD: Mover | Shift: Correr | C: Agachar | F: Lanterna | E: Coletar | R: Rádio |
+                🖱️ Clique para jogar</div>
+        </div>
+
+        <!-- GAME OVER / VITÓRIA -->
+        <div id="game-over-tela">
+            <h1>CAÇADO</h1>
+            <div class="subtitulo">A floresta o levou...</div>
+            <button class="reiniciar" onclick="reiniciarJogo()">TENTAR NOVAMENTE</button>
+        </div>
+        <div id="vitoria-tela">
+            <h1>🏆 ESCAPOU</h1>
+            <div class="subtitulo">O carro ruge novamente. Pelo retrovisor, uma silhueta...</div>
+            <button class="reiniciar" onclick="reiniciarJogo()">JOGAR DE NOVO</button>
+        </div>
+
+        <!-- CONQUISTAS POPUP -->
+        <div id="conquistas-popup">
+            <h4>🏆 CONQUISTAS</h4>
+            <div id="conq-lista"></div>
+            <button class="fechar-conq" id="fechar-conq-popup">FECHAR</button>
+        </div>
+        <div id="conquista-notif"></div>
+    </div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        // --- DOM ---
+        const container = document.getElementById('game-container');
+        const vignette = document.getElementById('vignette');
+        const bateriaBar = document.getElementById('bateria-bar');
+        const bateriaTexto = document.getElementById('bateria-texto');
+        const pecasContador = document.getElementById('pecas-contador');
+        const nivelRondante = document.getElementById('nivel-rondante');
+        const sanidadeFill = document.getElementById('sanidade-fill');
+        const sanidadeTexto = document.getElementById('sanidade-texto');
+        const mensagemCentro = document.getElementById('mensagem-centro');
+        const indicadorEscondido = document.getElementById('indicador-escondido');
+        const dicaControles = document.getElementById('dica-controles');
+        const gameOverTela = document.getElementById('game-over-tela');
+        const vitoriaTela = document.getElementById('vitoria-tela');
+        const lanternaIcone = document.getElementById('lanterna-icone');
+        const menuTela = document.getElementById('menu-tela');
+        const historiaTela = document.getElementById('historia-tela');
+        const controlesModal = document.getElementById('controles-modal');
+        const fundoModal = document.getElementById('fundo-modal');
+        const notasContador = document.getElementById('notas-contador');
+        const climaTexto = document.getElementById('clima-texto');
+        const conqCount = document.getElementById('conq-count');
+        const conqLista = document.getElementById('conq-lista');
+        const conquistaNotif = document.getElementById('conquista-notif');
+        const conquistasPopup = document.getElementById('conquistas-popup');
+
+        const btnJogar = document.getElementById('btn-jogar');
+        const btnContinuarHistoria = document.getElementById('btn-continuar-historia');
+        const btnControles = document.getElementById('btn-controles');
+        const btnSobre = document.getElementById('btn-sobre');
+        const btnFecharControles = document.getElementById('btn-fechar-controles');
+        const botoesDificuldade = document.querySelectorAll('[data-dificuldade]');
+        const btnConquistas = document.getElementById('conquistas-info');
+        const btnFecharConq = document.getElementById('fechar-conq-popup');
+
+        // --- Estado do jogo ---
+        const gameState = {
+            estado: 'menu',
+            pecasColetadas: 0,
+            totalPecas: 6,
+            bateria: 100,
+            bateriaMax: 100,
+            lanternaAcesa: false,
+            agachado: false,
+            correndo: false,
+            heat: 0,
+            escondido: false,
+            mensagemTimer: 0,
+            toggleCooldown: false,
+            dificuldade: 'medio',
+            nivelPerseguidor: 1,
+            tempoTotal: 0,
+            sanidade: 100,
+            sanidadeMax: 100,
+            mapaAtivo: false,
+            mapaTimer: 0,
+            fogueiraAtiva: false,
+            fogueiraTimer: 0,
+            ultimoEvento: 0,
+            eventoVento: false,
+            ventoTimer: 0,
+            // Novos
+            notasColetadas: 0,
+            totalNotas: 6,
+            radioDisponivel: false,
+            radioUsado: false,
+            radioCooldown: 0,
+            chaveCabana: false,
+            cabanaAberta: false,
+            clima: 'calmo', // calmo, chuva, neblina
+            climaTimer: 0,
+            alucinacaoTimer: 0,
+            alucinacaoAtiva: false,
+            conquistas: {
+                'colecionador': false,
+                'noturno': false,
+                'ralo': false,
+                'fugiu': false,
+                'escondido': false,
+                'radioativo': false,
+                'explorador': false,
+                'sobrevivente': false,
+            },
+            conquistasTotal: 8,
+            notaAtual: -1,
+            tempoFugiu: 0,
+        };
+
+        // --- Configurações por dificuldade ---
+        const dificuldadeConfig = {
+            facil: {
+                consumoBateria: 2.0,
+                velocidadeBaseRondante: 1.0,
+                multiplicadorHeat: 0.6,
+                distanciaAlerta: 20,
+                distanciaCaca: 14,
+                perdaSanidade: 0.3,
+            },
+            medio: {
+                consumoBateria: 3.5,
+                velocidadeBaseRondante: 1.8,
+                multiplicadorHeat: 1.0,
+                distanciaAlerta: 14,
+                distanciaCaca: 8,
+                perdaSanidade: 0.6,
+            },
+            dificil: {
+                consumoBateria: 5.5,
+                velocidadeBaseRondante: 2.8,
+                multiplicadorHeat: 1.5,
+                distanciaAlerta: 9,
+                distanciaCaca: 4,
+                perdaSanidade: 1.2,
+            }
+        };
+
+        let config = dificuldadeConfig.medio;
+
+        // --- Flashlight Canvas ---
+        const flCanvas = document.getElementById('flashlight-cone');
+        const flCtx = flCanvas.getContext('2d');
+
+        function resizeFlCanvas() {
+            flCanvas.width = window.innerWidth;
+            flCanvas.height = window.innerHeight;
+        }
+        resizeFlCanvas();
+
+        function drawFlashlightOverlay(on, batteryPct, vento, clima) {
+            const W = flCanvas.width,
+                H = flCanvas.height;
+            flCtx.clearRect(0, 0, W, H);
+            if (!on) {
+                flCtx.fillStyle = 'rgba(0,0,0,0.96)';
+                flCtx.fillRect(0, 0, W, H);
+                return;
+            }
+            let intensity = Math.max(0.25, batteryPct / 100);
+            // Clima afeta a intensidade
+            if (clima === 'chuva') intensity *= 0.6;
+            if (clima === 'neblina') intensity *= 0.7;
+
+            const coneAngle = Math.PI / 5.0 + (vento ? 0.2 : 0) + (clima === 'neblina' ? 0.15 : 0);
+            const coneLength = Math.max(H * 0.88, W * 0.75) * intensity;
+            const cx = W / 2,
+                cy = H / 2;
+
+            flCtx.fillStyle = 'rgba(0,0,0,0.97)';
+            flCtx.fillRect(0, 0, W, H);
+            flCtx.save();
+            flCtx.globalCompositeOperation = 'destination-out';
+
+            const grad = flCtx.createRadialGradient(cx, cy, 0, cx, cy, coneLength);
+            grad.addColorStop(0, `rgba(0,0,0,1)`);
+            grad.addColorStop(0.5, `rgba(0,0,0,0.90)`);
+            grad.addColorStop(0.80, `rgba(0,0,0,0.4)`);
+            grad.addColorStop(1, `rgba(0,0,0,0)`);
+
+            flCtx.beginPath();
+            flCtx.moveTo(cx, cy);
+            const offsetX = (vento ? (Math.random() - 0.5) * 30 : 0) + (clima === 'chuva' ? (Math.random() - 0.5) * 20 : 0);
+            const offsetY = (vento ? (Math.random() - 0.5) * 20 : 0) + (clima === 'chuva' ? (Math.random() - 0.5) * 15 : 0);
+            flCtx.arc(cx + offsetX, cy + offsetY, coneLength, -Math.PI / 2 - coneAngle, -Math.PI / 2 + coneAngle);
+            flCtx.closePath();
+            flCtx.fillStyle = grad;
+            flCtx.fill();
+            flCtx.restore();
+
+            flCtx.save();
+            flCtx.globalCompositeOperation = 'source-atop';
+            const warmGrad = flCtx.createRadialGradient(cx, cy, 0, cx, cy, coneLength * 0.6);
+            const alpha = intensity * 0.2;
+            warmGrad.addColorStop(0, `rgba(255,230,160,${alpha})`);
+            warmGrad.addColorStop(0.5, `rgba(255,190,100,${alpha * 0.5})`);
+            warmGrad.addColorStop(1, `rgba(0,0,0,0)`);
+            flCtx.beginPath();
+            flCtx.moveTo(cx, cy);
+            flCtx.arc(cx + offsetX, cy + offsetY, coneLength, -Math.PI / 2 - coneAngle, -Math.PI / 2 + coneAngle);
+            flCtx.closePath();
+            flCtx.fillStyle = warmGrad;
+            flCtx.fill();
+            flCtx.restore();
+
+            if (batteryPct < 25 && Math.random() < 0.1) {
+                flCtx.fillStyle = `rgba(0,0,0,${0.3 + Math.random() * 0.5})`;
+                flCtx.fillRect(0, 0, W, H);
+            }
+        }
+
+        // --- Three.js Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x080c10);
+        scene.fog = new THREE.FogExp2(0x080c10, 0.025);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.3, 200);
+        camera.position.set(0, 1.6, 8);
+        camera.rotation.y = Math.PI;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.insertBefore(renderer.domElement, container.firstChild);
+
+        // --- Luzes ---
+        const ambientLight = new THREE.AmbientLight(0x334466, 1.2);
+        scene.add(ambientLight);
+
+        const moonLight = new THREE.DirectionalLight(0x6688aa, 0.6);
+        moonLight.position.set(50, 80, -30);
+        moonLight.castShadow = true;
+        moonLight.shadow.mapSize.width = 1024;
+        moonLight.shadow.mapSize.height = 1024;
+        moonLight.shadow.camera.near = 0.5;
+        moonLight.shadow.camera.far = 200;
+        moonLight.shadow.camera.left = -60;
+        moonLight.shadow.camera.right = 60;
+        moonLight.shadow.camera.top = 60;
+        moonLight.shadow.camera.bottom = -60;
+        scene.add(moonLight);
+
+        const lanternaSpot = new THREE.SpotLight(0xffe8a0, 0, 50, Math.PI / 6.0, 0.15, 1.5);
+        lanternaSpot.castShadow = true;
+        lanternaSpot.shadow.mapSize.width = 1024;
+        lanternaSpot.shadow.mapSize.height = 1024;
+        lanternaSpot.shadow.camera.near = 0.5;
+        lanternaSpot.shadow.camera.far = 60;
+        scene.add(lanternaSpot);
+        scene.add(lanternaSpot.target);
+
+        const fillLight = new THREE.PointLight(0xffcc88, 0, 8, 2);
+        scene.add(fillLight);
+
+        // --- Controles ---
+        const controls = new PointerLockControls(camera, document.body);
+        controls.pointerSpeed = 0.5;
+        controls.maxPolarAngle = Math.PI * 0.85;
+        document.addEventListener('click', () => {
+            if (!controls.isLocked && gameState.estado === 'jogando' && menuTela.classList.contains('escondido'))
+                controls.lock();
+        });
+        controls.addEventListener('lock', () => dicaControles.style.opacity = '0.5');
+        controls.addEventListener('unlock', () => {
+            if (gameState.estado === 'jogando') dicaControles.style.opacity = '1';
+        });
+
+        // --- Teclas ---
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            if (e.key.toLowerCase() === 'f' && gameState.estado === 'jogando' && !gameState.toggleCooldown) {
+                gameState.lanternaAcesa = !gameState.lanternaAcesa;
+                gameState.toggleCooldown = true;
+                initAudio();
+                playBeep(gameState.lanternaAcesa ? 400 : 300, 0.1, 0.03);
+                setTimeout(() => gameState.toggleCooldown = false, 200);
+            }
+            if (e.key.toLowerCase() === 'e' && gameState.estado === 'jogando') {
+                initAudio();
+                tentarColetar();
+            }
+            if (e.key.toLowerCase() === 'r' && gameState.estado === 'jogando' && gameState.radioDisponivel) {
+                usarRadio();
+            }
+        });
+        document.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+
+        // --- Áudio ---
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playBeep(f, d, v = 0.05, t = 'sine') {
+            if (!audioCtx) return;
+            try {
+                const o = audioCtx.createOscillator(),
+                    g = audioCtx.createGain();
+                o.type = t;
+                o.frequency.setValueAtTime(f, audioCtx.currentTime);
+                g.gain.setValueAtTime(v, audioCtx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + d);
+                o.connect(g);
+                g.connect(audioCtx.destination);
+                o.start();
+                o.stop(audioCtx.currentTime + d);
+            } catch (e) { }
+        }
+
+        function playHeartbeat() {
+            if (!audioCtx || gameState.heat < 40) return;
+            const i = gameState.heat > 70 ? 0.35 : gameState.heat > 50 ? 0.6 : 1.0;
+            if (!playHeartbeat._lt || performance.now() - playHeartbeat._lt > i * 1000) {
+                playBeep(55, 0.15, 0.06);
+                setTimeout(() => playBeep(65, 0.1, 0.04), 120);
+                playHeartbeat._lt = performance.now();
+            }
+        }
+
+        function playSussurro() {
+            if (!audioCtx || gameState.sanidade > 40) return;
+            if (Math.random() < 0.005 && !playSussurro._last) {
+                playSussurro._last = performance.now();
+                const freq = 200 + Math.random() * 400;
+                playBeep(freq, 0.4, 0.02, 'sawtooth');
+                setTimeout(() => playBeep(freq * 0.8, 0.3, 0.015, 'sawtooth'), 200);
+                setTimeout(() => playSussurro._last = null, 1000);
+            }
+        }
+
+        // --- Terreno ---
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(250, 250),
+            new THREE.MeshStandardMaterial({ color: 0x2a3a1f, roughness: 0.95 })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+        for (let i = 0; i < 300; i++) {
+            const x = (Math.random() - 0.5) * 200,
+                z = (Math.random() - 0.5) * 200,
+                s = 0.3 + Math.random() * 1.5;
+            const f = new THREE.Mesh(
+                new THREE.CircleGeometry(s, 4),
+                new THREE.MeshStandardMaterial({
+                    color: new THREE.Color().setHSL(0.08 + Math.random() * 0.15, 0.6, 0.12 + Math.random() * 0.15),
+                    roughness: 1,
+                    side: THREE.DoubleSide
+                })
+            );
+            f.rotation.x = -Math.PI / 2 + (Math.random() - 0.5) * 0.4;
+            f.position.set(x, 0.02, z);
+            f.receiveShadow = true;
+            scene.add(f);
+        }
+
+        // --- Árvores ---
+        const treeTrunkPositions = [];
+
+        function criarArvore(x, z, altura = 6 + Math.random() * 10) {
+            const g = new THREE.Group();
+            const rt = 0.2 + Math.random() * 0.5;
+            const tronco = new THREE.Mesh(
+                new THREE.CylinderGeometry(rt * 0.7, rt, altura, 8),
+                new THREE.MeshStandardMaterial({ color: 0x3d2817, roughness: 0.9 })
+            );
+            tronco.position.y = altura / 2;
+            tronco.castShadow = true;
+            tronco.receiveShadow = true;
+            g.add(tronco);
+            for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) {
+                const rc = 1.5 + Math.random() * 2.5,
+                    ac = 3 + Math.random() * 5;
+                const cone = new THREE.Mesh(
+                    new THREE.ConeGeometry(rc, ac, 10 + Math.floor(Math.random() * 6)),
+                    new THREE.MeshStandardMaterial({
+                        color: new THREE.Color().setHSL(0.15 + Math.random() * 0.2, 0.5 + Math.random() * 0.3, 0.12 +
+                            Math.random() * 0.18),
+                        roughness: 0.8
+                    })
+                );
+                cone.position.y = altura * 0.5 + i * 2.2;
+                cone.castShadow = true;
+                cone.receiveShadow = true;
+                g.add(cone);
+            }
+            g.position.set(x, 0, z);
+            g.rotation.y = Math.random() * Math.PI * 2;
+            const sc = 0.7 + Math.random() * 1.2;
+            g.scale.set(sc, sc, sc);
+            scene.add(g);
+            treeTrunkPositions.push({ x, z, radius: rt * sc * 1.5, group: g });
+            return g;
+        }
+        for (let i = 0; i < 180; i++) {
+            let x, z;
+            do {
+                x = (Math.random() - 0.5) * 200;
+                z = (Math.random() - 0.5) * 200;
+            } while (Math.abs(x) < 8 && Math.abs(z) < 8);
+            criarArvore(x, z);
+        }
+
+        // --- Carro ---
+        const carroGrupo = new THREE.Group();
+        carroGrupo.add(new THREE.Mesh(
+            new THREE.BoxGeometry(2.5, 1, 5),
+            new THREE.MeshStandardMaterial({ color: 0x335588, roughness: 0.4, metalness: 0.6 })
+        ).translateY(0.7));
+        carroGrupo.add(new THREE.Mesh(
+            new THREE.BoxGeometry(2.2, 0.8, 2.2),
+            new THREE.MeshStandardMaterial({ color: 0x446699, roughness: 0.3, metalness: 0.5 })
+        ).translateY(1.4).translateZ(-0.3));
+        carroGrupo.add(new THREE.Mesh(
+            new THREE.BoxGeometry(2, 0.15, 1.5),
+            new THREE.MeshStandardMaterial({ color: 0x335588, roughness: 0.4, metalness: 0.6 })
+        ).translateY(1.0).translateZ(2.0).rotateX(-1.2));
+        carroGrupo.position.set(0, 0, 0);
+        scene.add(carroGrupo);
+
+        // --- Cabana (agora com porta) ---
+        const cabanaGrupo = new THREE.Group();
+        cabanaGrupo.add(new THREE.Mesh(
+            new THREE.BoxGeometry(5, 3, 4),
+            new THREE.MeshStandardMaterial({ color: 0x4a3520, roughness: 0.9 })
+        ).translateY(1.5));
+        cabanaGrupo.add(new THREE.Mesh(
+            new THREE.ConeGeometry(4, 2.5, 4),
+            new THREE.MeshStandardMaterial({ color: 0x3a2010, roughness: 0.95 })
+        ).translateY(3.8).rotateY(Math.PI / 4));
+        // Porta
+        const porta = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.8, 1.6),
+            new THREE.MeshStandardMaterial({ color: 0x6a4a30, roughness: 0.9, side: THREE.DoubleSide })
+        );
+        porta.position.set(0, 1.0, 2.05);
+        cabanaGrupo.add(porta);
+        cabanaGrupo.position.set(45, 0, 10);
+        scene.add(cabanaGrupo);
+        let cabanaAberta3D = false;
+
+        // --- Outros marcos ---
+        const poco = new THREE.Mesh(
+            new THREE.CylinderGeometry(1.2, 1.5, 2, 16),
+            new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.8 })
+        );
+        poco.position.set(-35, 0.2, 25);
+        poco.castShadow = true;
+        poco.receiveShadow = true;
+        scene.add(poco);
+        scene.add(new THREE.Mesh(
+            new THREE.TorusGeometry(1.3, 0.15, 8, 16),
+            new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.7, metalness: 0.4 })
+        ).translateX(-35).translateY(1.2).translateZ(25).rotateX(Math.PI / 2));
+
+        const tronco1 = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.5, 0.6, 6, 8),
+            new THREE.MeshStandardMaterial({ color: 0x5a3a20, roughness: 0.9 })
+        );
+        tronco1.position.set(25, 0.3, -35);
+        tronco1.rotation.z = Math.PI / 2;
+        tronco1.rotation.y = 0.4;
+        tronco1.castShadow = true;
+        tronco1.receiveShadow = true;
+        scene.add(tronco1);
+
+        const tronco2 = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.4, 0.5, 5, 8),
+            new THREE.MeshStandardMaterial({ color: 0x4a3020, roughness: 0.9 })
+        );
+        tronco2.position.set(28, 0.25, -32);
+        tronco2.rotation.z = Math.PI / 2;
+        tronco2.rotation.y = -0.6;
+        tronco2.castShadow = true;
+        tronco2.receiveShadow = true;
+        scene.add(tronco2);
+
+        // --- Arbustos ---
+        const arbustos = [];
+        [
+            [10, -15],
+            [-20, -20],
+            [30, 20],
+            [-40, -10],
+            [15, 35],
+            [-25, 40],
+            [50, -30],
+            [-50, 30],
+            [5, -40],
+            [-15, -50],
+            [40, -45],
+            [-45, -40],
+            [55, 15],
+            [-55, -15]
+        ].forEach(([x, z]) => {
+            const ag = new THREE.Group();
+            for (let j = 0; j < 5; j++) {
+                const s = 0.8 + Math.random() * 1.5;
+                ag.add(new THREE.Mesh(
+                    new THREE.SphereGeometry(s, 8, 6),
+                    new THREE.MeshStandardMaterial({
+                        color: new THREE.Color().setHSL(0.2, 0.7, 0.08 + Math.random() * 0.1),
+                        roughness: 0.9
+                    })
+                ).translateX((Math.random() - 0.5) * 3).translateY(s * 0.4).translateZ((Math.random() - 0.5) * 3));
+            }
+            ag.position.set(x, 0, z);
+            scene.add(ag);
+            arbustos.push({ x, z, radius: 3.5 });
+        });
+
+        // --- Peças ---
+        const pecas = [];
+        [
+            { nome: 'Bateria', pos: { x: 20, z: -25 }, cor: 0xffdd00 },
+            { nome: 'Correia do Alternador', pos: { x: -30, z: -30 }, cor: 0xff8800 },
+            { nome: 'Velas de Ignição', pos: { x: 40, z: 30 }, cor: 0xff4444 },
+            { nome: 'Mangueira do Radiador', pos: { x: -40, z: -20 }, cor: 0x44aaff },
+            { nome: 'Chave de Roda', pos: { x: 10, z: 45 }, cor: 0xcccccc },
+            { nome: 'Lata de Gasolina', pos: { x: -10, z: -45 }, cor: 0xee3333 }
+        ].forEach(d => {
+            const pg = new THREE.Group();
+            const pm = new THREE.Mesh(
+                new THREE.BoxGeometry(0.6, 0.6, 0.6),
+                new THREE.MeshStandardMaterial({
+                    color: d.cor,
+                    roughness: 0.3,
+                    metalness: 0.7,
+                    emissive: d.cor,
+                    emissiveIntensity: 0.5
+                })
+            );
+            pm.castShadow = true;
+            pg.add(pm);
+            const gm = new THREE.Mesh(
+                new THREE.SphereGeometry(0.7, 16, 16),
+                new THREE.MeshBasicMaterial({ color: d.cor, transparent: true, opacity: 0.25, depthWrite: false })
+            );
+            pg.add(gm);
+            pg.position.set(d.pos.x, 0.5, d.pos.z);
+            pg.userData = { nome: d.nome, coletada: false, glowMesh: gm };
+            scene.add(pg);
+            pecas.push(pg);
+        });
+
+        // --- Pilhas ---
+        const pilhas = [];
+        [
+            [15, 10],
+            [-25, 15],
+            [35, -10],
+            [-15, -35],
+            [50, 40],
+            [-50, -25]
+        ].forEach(([x, z]) => {
+            const p = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.15, 0.15, 0.4, 8),
+                new THREE.MeshStandardMaterial({
+                    color: 0x44cc88,
+                    roughness: 0.3,
+                    metalness: 0.8,
+                    emissive: 0x226644,
+                    emissiveIntensity: 0.6
+                })
+            );
+            p.position.set(x, 0.25, z);
+            p.castShadow = true;
+            p.userData = { coletada: false };
+            scene.add(p);
+            pilhas.push(p);
+        });
+
+        // --- Itens especiais: Mapas, Isqueiros, Rádio, Chave ---
+        const itensEspeciais = [];
+        const itemPositions = [
+            { x: 30, z: -20, tipo: 'mapa' },
+            { x: -30, z: 20, tipo: 'isqueiro' },
+            { x: 10, z: -40, tipo: 'mapa' },
+            { x: -20, z: 45, tipo: 'isqueiro' },
+            { x: 12, z: 12, tipo: 'radio' },
+            { x: -12, z: -22, tipo: 'chave' },
+        ];
+        itemPositions.forEach(pos => {
+            const g = new THREE.Group();
+            const cor = pos.tipo === 'mapa' ? 0x44aaff :
+                pos.tipo === 'isqueiro' ? 0xff8844 :
+                    pos.tipo === 'radio' ? 0x44ff88 : 0xffaa44;
+            const mesh = new THREE.Mesh(
+                new THREE.BoxGeometry(0.4, 0.4, 0.4),
+                new THREE.MeshStandardMaterial({ color: cor, emissive: cor, emissiveIntensity: 0.3 })
+            );
+            mesh.castShadow = true;
+            g.add(mesh);
+            const glow = new THREE.Mesh(
+                new THREE.SphereGeometry(0.5, 8, 8),
+                new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.2, depthWrite: false })
+            );
+            g.add(glow);
+            g.position.set(pos.x, 0.4, pos.z);
+            g.userData = { tipo: pos.tipo, coletado: false, glowMesh: glow };
+            scene.add(g);
+            itensEspeciais.push(g);
+        });
+
+        // --- Notas ---
+        const notasData = [
+            {
+                id: 0, texto: '📜 Nota #1: "O motorista antes de mim também ouviu os sussurros. Ele dizia que a floresta tem olhos."', x: 18,
+                z: -18
+            },
+            { id: 1, texto: '📜 Nota #2: "A criatura não gosta de luz. Mas a luz a atrai. Paradoxo cruel."', x: -28, z: -28 },
+            {
+                id: 2, texto: '📜 Nota #3: "Encontrei uma cabana abandonada. Talvez haja suprimentos lá dentro. Preciso de uma chave."',
+                x: 38, z: 12
+            },
+            {
+                id: 3, texto: '📜 Nota #4: "As fogueiras afastam o Slenderman, mas duram pouco. Use com sabedoria."', x: -15,
+                z: 38
+            },
+            { id: 4, texto: '📜 Nota #5: "O rádio pode distraí-lo. Ele odeia sons agudos."', x: 12, z: -35 },
+            {
+                id: 5, texto: '📜 Nota #6: "A última peça está perto do poço. Cuidado, ele gosta de espreitar ali."', x: -33,
+                z: 23
+            },
+        ];
+        const notas = [];
+        notasData.forEach(d => {
+            const g = new THREE.Group();
+            const mesh = new THREE.Mesh(
+                new THREE.BoxGeometry(0.3, 0.05, 0.4),
+                new THREE.MeshStandardMaterial({ color: 0xddcc88, emissive: 0x886644, emissiveIntensity: 0.1 })
+            );
+            mesh.castShadow = true;
+            g.add(mesh);
+            g.position.set(d.x, 0.2, d.z);
+            g.userData = { id: d.id, coletada: false, texto: d.texto };
+            scene.add(g);
+            notas.push(g);
+        });
+
+        // --- Slenderman ---
+        const rondanteGrupo = new THREE.Group();
+
+        const corpo = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.4, 0.5, 2.8, 8),
+            new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.6, metalness: 0.3 })
+        );
+        corpo.position.y = 1.4;
+        corpo.castShadow = true;
+        rondanteGrupo.add(corpo);
+
+        const terno = new THREE.Mesh(
+            new THREE.BoxGeometry(0.9, 1.6, 0.3),
+            new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 })
+        );
+        terno.position.set(0, 1.6, 0);
+        terno.castShadow = true;
+        rondanteGrupo.add(terno);
+
+        const cabeca = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.3, 0.35, 0.8, 12),
+            new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.9 })
+        );
+        cabeca.position.y = 3.0;
+        cabeca.castShadow = true;
+        rondanteGrupo.add(cabeca);
+
+        const olhoMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const olho1 = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), olhoMat);
+        olho1.position.set(-0.08, 3.05, -0.25);
+        rondanteGrupo.add(olho1);
+        const olho2 = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), olhoMat);
+        olho2.position.set(0.08, 3.05, -0.25);
+        rondanteGrupo.add(olho2);
+
+        const bracoMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+        const bracoEsq = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 1.8, 6), bracoMat);
+        bracoEsq.position.set(-0.65, 1.8, 0);
+        bracoEsq.rotation.z = 0.4;
+        bracoEsq.rotation.x = -0.2;
+        bracoEsq.castShadow = true;
+        rondanteGrupo.add(bracoEsq);
+        const bracoDir = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 1.8, 6), bracoMat);
+        bracoDir.position.set(0.65, 1.8, 0);
+        bracoDir.rotation.z = -0.4;
+        bracoDir.rotation.x = 0.2;
+        bracoDir.castShadow = true;
+        rondanteGrupo.add(bracoDir);
+
+        const pernaMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+        const pernaEsq = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.4, 6), pernaMat);
+        pernaEsq.position.set(-0.22, 0.7, 0);
+        pernaEsq.castShadow = true;
+        rondanteGrupo.add(pernaEsq);
+        const pernaDir = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.4, 6), pernaMat);
+        pernaDir.position.set(0.22, 0.7, 0);
+        pernaDir.castShadow = true;
+        rondanteGrupo.add(pernaDir);
+
+        const particulas = new THREE.BufferGeometry();
+        const count = 100;
+        const pos = new Float32Array(count * 3);
+        for (let i = 0; i < count * 3; i++) {
+            pos[i] = (Math.random() - 0.5) * 5;
+        }
+        particulas.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        const particulaMat = new THREE.PointsMaterial({
+            color: 0xff4444,
+            size: 0.06,
+            transparent: true,
+            opacity: 0.5,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const particulaSistema = new THREE.Points(particulas, particulaMat);
+        particulaSistema.position.y = 1.8;
+        rondanteGrupo.add(particulaSistema);
+        particulaSistema.visible = false;
+
+        rondanteGrupo.position.set(50, 0, 50);
+        scene.add(rondanteGrupo);
+
+        const rondanteState = {
+            group: rondanteGrupo,
+            velocidade: 1.5,
+            distanciaAlvo: 35,
+            patrolAngle: 0,
+            perdidoTimer: 0,
+            nivelAtual: 1,
+            particulas: particulaSistema,
+            olhos: [olho1, olho2],
+            cabeca: cabeca,
+            bracoEsq: bracoEsq,
+            bracoDir: bracoDir,
+            corpo: corpo,
+        };
+
+        // --- Clima: partículas de chuva e neblina ---
+        let rainSystem = null;
+        let fogSystem = null;
+
+        function setupClima() {
+            // Chuva
+            const rainGeo = new THREE.BufferGeometry();
+            const rainCount = 1500;
+            const rainPos = new Float32Array(rainCount * 3);
+            for (let i = 0; i < rainCount; i++) {
+                rainPos[i * 3] = (Math.random() - 0.5) * 200;
+                rainPos[i * 3 + 1] = Math.random() * 40;
+                rainPos[i * 3 + 2] = (Math.random() - 0.5) * 200;
+            }
+            rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+            const rainMat = new THREE.PointsMaterial({
+                color: 0x88bbff,
+                size: 0.15,
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            rainSystem = new THREE.Points(rainGeo, rainMat);
+            rainSystem.visible = false;
+            scene.add(rainSystem);
+
+            // Neblina (partículas)
+            const fogGeo = new THREE.BufferGeometry();
+            const fogCount = 400;
+            const fogPos = new Float32Array(fogCount * 3);
+            for (let i = 0; i < fogCount; i++) {
+                fogPos[i * 3] = (Math.random() - 0.5) * 180;
+                fogPos[i * 3 + 1] = Math.random() * 6 + 0.5;
+                fogPos[i * 3 + 2] = (Math.random() - 0.5) * 180;
+            }
+            fogGeo.setAttribute('position', new THREE.BufferAttribute(fogPos, 3));
+            const fogMat = new THREE.PointsMaterial({
+                color: 0xccccdd,
+                size: 0.8,
+                transparent: true,
+                opacity: 0.15,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            fogSystem = new THREE.Points(fogGeo, fogMat);
+            fogSystem.visible = false;
+            scene.add(fogSystem);
+        }
+        setupClima();
+
+        // --- Alucinação: Slenderman fantasma ---
+        const alucinacaoGrupo = new THREE.Group();
+        // Cópia simplificada do Slenderman
+        const aluCorpo = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.4, 0.5, 2.8, 8),
+            new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6, transparent: true, opacity: 0.4 })
+        );
+        aluCorpo.position.y = 1.4;
+        alucinacaoGrupo.add(aluCorpo);
+        const aluCabeca = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.3, 0.35, 0.8, 12),
+            new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.9, transparent: true, opacity: 0.4 })
+        );
+        aluCabeca.position.y = 3.0;
+        alucinacaoGrupo.add(aluCabeca);
+        const aluOlho1 = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            transparent: true, opacity: 0.6
+        }));
+        aluOlho1.position.set(-0.08, 3.05, -0.25);
+        alucinacaoGrupo.add(aluOlho1);
+        const aluOlho2 = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            transparent: true, opacity: 0.6
+        }));
+        aluOlho2.position.set(0.08, 3.05, -0.25);
+        alucinacaoGrupo.add(aluOlho2);
+        alucinacaoGrupo.visible = false;
+        scene.add(alucinacaoGrupo);
+
+        // --- Helpers ---
+        function getPlayerPos() {
+            return new THREE.Vector3(camera.position.x, 0, camera.position.z);
+        }
+
+        function getRondantePos() {
+            return new THREE.Vector3(rondanteGrupo.position.x, 0, rondanteGrupo.position.z);
+        }
+
+        function distRondante() {
+            return getPlayerPos().distanceTo(getRondantePos());
+        }
+
+        function msg(t, d = 2.5, perigo = false, nota = false) {
+            mensagemCentro.textContent = t;
+            mensagemCentro.classList.add('visivel');
+            mensagemCentro.classList.remove('perigo', 'nota');
+            if (perigo) mensagemCentro.classList.add('perigo');
+            if (nota) mensagemCentro.classList.add('nota');
+            gameState.mensagemTimer = d;
+        }
+
+        function esconderMsg() {
+            mensagemCentro.classList.remove('visivel');
+            mensagemCentro.classList.remove('perigo', 'nota');
+        }
+
+        // --- Conquistas ---
+        function desbloquearConquista(id, nome) {
+            if (gameState.conquistas[id]) return;
+            gameState.conquistas[id] = true;
+            const total = Object.values(gameState.conquistas).filter(v => v).length;
+            conqCount.textContent = total;
+            atualizarListaConquistas();
+            // Notificação
+            conquistaNotif.textContent = `🏆 CONQUISTA DESBLOQUEADA: ${nome}`;
+            conquistaNotif.classList.add('visivel');
+            setTimeout(() => conquistaNotif.classList.remove('visivel'), 4000);
+            playBeep(880, 0.15, 0.08);
+            setTimeout(() => playBeep(1100, 0.15, 0.08), 150);
+        }
+
+        function atualizarListaConquistas() {
+            const lista = [
+                { id: 'colecionador', nome: 'Colecionador', desc: 'Encontre todas as 6 peças', icon: '🔧' },
+                { id: 'noturno', nome: 'Noturno', desc: 'Encontre todas as 6 notas', icon: '📜' },
+                { id: 'ralo', nome: 'Ralo', desc: 'Use o rádio para distrair o Slenderman', icon: '📻' },
+                { id: 'fugiu', nome: 'Fugiu', desc: 'Escape em menos de 5 minutos', icon: '⏱️' },
+                { id: 'escondido', nome: 'Escondido', desc: 'Fique escondido por 30 segundos seguidos', icon: '🌿' },
+                { id: 'radioativo', nome: 'Radioativo', desc: 'Use o rádio 3 vezes', icon: '📡' },
+                { id: 'explorador', nome: 'Explorador', desc: 'Abra a cabana com a chave', icon: '🏚️' },
+                { id: 'sobrevivente', nome: 'Sobrevivente', desc: 'Complete o jogo com sanidade acima de 50%', icon: '🧠' },
+            ];
+            conqLista.innerHTML = '';
+            let count = 0;
+            lista.forEach(c => {
+                const done = gameState.conquistas[c.id] || false;
+                if (done) count++;
+                const div = document.createElement('div');
+                div.className = 'conq-item';
+                div.innerHTML = `
+                    <span class="conq-icon">${c.icon}</span>
+                    <span>${c.nome}</span>
+                    <span style="flex:1"></span>
+                    <span class="${done ? 'conq-done' : 'conq-pendente'}">${done ? '✅' : '⬜'}</span>
+                    <span style="font-size:11px; color:#888;">${c.desc}</span>
+                `;
+                conqLista.appendChild(div);
+            });
+            conqCount.textContent = count;
+        }
+        atualizarListaConquistas();
+
+        // --- Coleta ---
+        function tentarColetar() {
+            const pp = camera.position.clone();
+            // Peças
+            for (const p of pecas) {
+                if (p.userData.coletada) continue;
+                if (pp.distanceTo(p.position) < 3.5) {
+                    p.userData.coletada = true;
+                    p.visible = false;
+                    gameState.pecasColetadas++;
+                    pecasContador.textContent = `${gameState.pecasColetadas}/${gameState.totalPecas}`;
+                    playBeep(880, 0.2, 0.08);
+                    msg(`🔧 ${p.userData.nome} coletada! (${gameState.pecasColetadas}/${gameState.totalPecas})`, 2.5);
+                    if (gameState.pecasColetadas >= gameState.totalPecas) {
+                        msg('⚠️ Todas as peças coletadas! Volte para o carro!', 4);
+                        desbloquearConquista('colecionador', 'Colecionador');
+                    }
+                    const novoNivel = Math.min(3, Math.floor(gameState.pecasColetadas / 2) + 1);
+                    if (novoNivel > gameState.nivelPerseguidor) {
+                        gameState.nivelPerseguidor = novoNivel;
+                        nivelRondante.textContent = novoNivel;
+                        msg(`🌀 O Slenderman ficou mais forte! Nível ${novoNivel}`, 3, true);
+                        playBeep(200, 0.3, 0.1, 'sawtooth');
+                        atualizarNivelPerseguidor();
+                    }
+                    return;
+                }
+            }
+            // Pilhas
+            for (const pl of pilhas) {
+                if (pl.userData.coletada) continue;
+                if (pp.distanceTo(pl.position) < 2.5) {
+                    pl.userData.coletada = true;
+                    pl.visible = false;
+                    const add = Math.min(35, gameState.bateriaMax - gameState.bateria);
+                    gameState.bateria += add;
+                    playBeep(660, 0.15, 0.06);
+                    msg(`🔋 Pilha extra! +${Math.round(add)}% bateria`, 2);
+                    return;
+                }
+            }
+            // Itens especiais
+            for (const item of itensEspeciais) {
+                if (item.userData.coletado) continue;
+                if (pp.distanceTo(item.position) < 2.5) {
+                    item.userData.coletado = true;
+                    item.visible = false;
+                    if (item.userData.tipo === 'mapa') {
+                        gameState.mapaAtivo = true;
+                        gameState.mapaTimer = 10;
+                        msg('🗺️ Mapa ativado! As peças brilham por 10 segundos.', 3);
+                        for (const p of pecas) {
+                            if (!p.userData.coletada) {
+                                p.userData.glowMesh.material.color.setHex(0x44ff88);
+                                p.userData.glowMesh.material.opacity = 0.8;
+                            }
+                        }
+                        playBeep(1000, 0.2, 0.05);
+                    } else if (item.userData.tipo === 'isqueiro') {
+                        gameState.fogueiraAtiva = true;
+                        gameState.fogueiraTimer = 15;
+                        msg('🔥 Fogueira acesa! O Slenderman recua por 15 segundos.', 3);
+                        playBeep(700, 0.3, 0.07);
+                        // Efeito de fogueira visual simples: partículas laranja
+                        criarFogueiraEfeito(item.position);
+                    } else if (item.userData.tipo === 'radio') {
+                        gameState.radioDisponivel = true;
+                        msg('📻 Rádio encontrado! Pressione R para usá-lo.', 3);
+                        playBeep(500, 0.2, 0.06);
+                    } else if (item.userData.tipo === 'chave') {
+                        gameState.chaveCabana = true;
+                        msg('🔑 Chave da cabana encontrada! Vá até a cabana.', 3);
+                        playBeep(600, 0.2, 0.06);
+                    }
+                    return;
+                }
+            }
+            // Notas
+            for (const n of notas) {
+                if (n.userData.coletada) continue;
+                if (pp.distanceTo(n.position) < 2.5) {
+                    n.userData.coletada = true;
+                    n.visible = false;
+                    gameState.notasColetadas++;
+                    notasContador.textContent = `${gameState.notasColetadas}/${gameState.totalNotas}`;
+                    msg(n.userData.texto, 5, false, true);
+                    playBeep(450, 0.2, 0.05);
+                    if (gameState.notasColetadas >= gameState.totalNotas) {
+                        desbloquearConquista('noturno', 'Noturno');
+                    }
+                    return;
+                }
+            }
+            // Interagir com cabana (se tiver chave)
+            if (gameState.chaveCabana && !gameState.cabanaAberta) {
+                const cabanaPos = cabanaGrupo.position;
+                if (pp.distanceTo(new THREE.Vector3(cabanaPos.x, 0, cabanaPos.z)) < 4) {
+                    gameState.cabanaAberta = true;
+                    cabanaAberta3D = true;
+                    msg('🏚️ A cabana está aberta! Lá dentro você encontra uma peça extra.', 3);
+                    // Adiciona uma peça extra na cabana (se ainda não coletou todas)
+                    if (gameState.pecasColetadas < gameState.totalPecas) {
+                        // Encontra a primeira peça não coletada e a coloca na cabana
+                        for (const p of pecas) {
+                            if (!p.userData.coletada) {
+                                p.position.set(cabanaPos.x + 0.5, 0.5, cabanaPos.z + 0.5);
+                                p.userData.glowMesh.position.copy(p.position);
+                                p.visible = true;
+                                break;
+                            }
+                        }
+                    }
+                    desbloquearConquista('explorador', 'Explorador');
+                    playBeep(800, 0.3, 0.08);
+                    return;
+                }
+            }
+            // Verificar vitória
+            if (gameState.pecasColetadas >= gameState.totalPecas) {
+                const cp = carroGrupo.position.clone();
+                cp.y = 0;
+                if (pp.distanceTo(cp) < 5) {
+                    // Verifica conquistas
+                    if (gameState.tempoTotal < 300) desbloquearConquista('fugiu', 'Fugiu');
+                    if (gameState.sanidade > 50) desbloquearConquista('sobrevivente', 'Sobrevivente');
+                    iniciarVitoria();
+                }
+            }
+        }
+
+        // --- Efeito fogueira (partículas) ---
+        function criarFogueiraEfeito(pos) {
+            const fogo = new THREE.BufferGeometry();
+            const count = 80;
+            const positions = new Float32Array(count * 3);
+            const cores = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                const r = 0.5 + Math.random() * 1.5;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                positions[i * 3] = Math.sin(theta) * Math.sin(phi) * r + pos.x;
+                positions[i * 3 + 1] = Math.random() * 2.5 + 0.2;
+                positions[i * 3 + 2] = Math.cos(theta) * Math.sin(phi) * r + pos.z;
+                cores[i * 3] = 1;
+                cores[i * 3 + 1] = 0.3 + Math.random() * 0.4;
+                cores[i * 3 + 2] = 0;
+            }
+            fogo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            fogo.setAttribute('color', new THREE.BufferAttribute(cores, 3));
+            const mat = new THREE.PointsMaterial({
+                size: 0.3,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const pts = new THREE.Points(fogo, mat);
+            scene.add(pts);
+            // Animação
+            let life = 15;
+            const interval = setInterval(() => {
+                life -= 0.1;
+                if (life <= 0 || gameState.estado !== 'jogando') {
+                    scene.remove(pts);
+                    clearInterval(interval);
+                    return;
+                }
+                const posAttr = pts.geometry.attributes.position;
+                for (let i = 0; i < count; i++) {
+                    posAttr.array[i * 3 + 1] += (Math.random() - 0.5) * 0.1;
+                    posAttr.array[i * 3] += (Math.random() - 0.5) * 0.1;
+                    posAttr.array[i * 3 + 2] += (Math.random() - 0.5) * 0.1;
+                    // Reset
+                    if (posAttr.array[i * 3 + 1] > 3 || posAttr.array[i * 3 + 1] < 0) {
+                        const r = 0.5 + Math.random() * 1.5;
+                        const theta = Math.random() * Math.PI * 2;
+                        const phi = Math.random() * Math.PI;
+                        posAttr.array[i * 3] = Math.sin(theta) * Math.sin(phi) * r + pos.x;
+                        posAttr.array[i * 3 + 1] = Math.random() * 2.5 + 0.2;
+                        posAttr.array[i * 3 + 2] = Math.cos(theta) * Math.sin(phi) * r + pos.z;
+                    }
+                }
+                posAttr.needsUpdate = true;
+            }, 50);
+        }
+
+        // --- Rádio ---
+        function usarRadio() {
+            if (!gameState.radioDisponivel || gameState.radioUsado) return;
+            if (gameState.radioCooldown > 0) {
+                msg(`⏳ Rádio em cooldown (${Math.ceil(gameState.radioCooldown)}s)`, 2);
+                return;
+            }
+            gameState.radioUsado = true;
+            gameState.radioCooldown = 20;
+            playBeep(1200, 0.3, 0.1);
+            setTimeout(() => playBeep(900, 0.3, 0.08), 200);
+            setTimeout(() => playBeep(1500, 0.4, 0.12), 400);
+            msg('📻 Rádio ligado! O Slenderman se afasta por 10 segundos.', 3);
+            // O Slenderman foge por 10s
+            const rp = getRondantePos();
+            const pp = getPlayerPos();
+            const dir = new THREE.Vector3().subVectors(rp, pp).normalize();
+            const novaPos = rp.clone().addScaledVector(dir, -30);
+            rondanteGrupo.position.x = Math.max(-110, Math.min(110, novaPos.x));
+            rondanteGrupo.position.z = Math.max(-110, Math.min(110, novaPos.z));
+            // Desbloqueia conquista
+            if (!gameState.conquistas['ralo']) {
+                desbloquearConquista('ralo', 'Ralo');
+            }
+            // Contador para 'radioativo'
+            if (!gameState._radioCount) gameState._radioCount = 0;
+            gameState._radioCount++;
+            if (gameState._radioCount >= 3) {
+                desbloquearConquista('radioativo', 'Radioativo');
+            }
+            setTimeout(() => {
+                gameState.radioUsado = false;
+                msg('📻 O rádio parou de funcionar.', 2);
+            }, 10000);
+        }
+
+        // --- Atualizar Nível do Perseguidor ---
+        function atualizarNivelPerseguidor() {
+            const nivel = gameState.nivelPerseguidor;
+            rondanteState.nivelAtual = nivel;
+            const base = config.velocidadeBaseRondante;
+            const mult = 1 + (nivel - 1) * 0.45;
+            rondanteState.velocidade = base * mult;
+            const intensidadeOlho = Math.min(1, 0.4 + nivel * 0.3);
+            rondanteState.olhos.forEach(o => o.material.color.setHSL(0, 0, 1 - intensidadeOlho * 0.3));
+            if (nivel >= 2) {
+                rondanteState.particulas.visible = true;
+                rondanteState.particulas.material.opacity = 0.3 + (nivel - 1) * 0.2;
+            } else {
+                rondanteState.particulas.visible = false;
+            }
+            const escala = 1 + (nivel - 1) * 0.1;
+            rondanteGrupo.scale.set(escala, escala, escala);
+        }
+
+        // --- Eventos climáticos ---
+        function mudarClima(novoClima) {
+            gameState.clima = novoClima;
+            const nomes = { calmo: '🌤️ Calmo', chuva: '🌧️ Chuva', neblina: '🌫️ Neblina' };
+            climaTexto.textContent = nomes[novoClima] || 'Calmo';
+            // Atualiza visibilidade das partículas
+            if (rainSystem) rainSystem.visible = (novoClima === 'chuva');
+            if (fogSystem) fogSystem.visible = (novoClima === 'neblina');
+            // Ajusta a névoa
+            if (novoClima === 'neblina') {
+                scene.fog = new THREE.FogExp2(0x080c10, 0.04);
+            } else if (novoClima === 'chuva') {
+                scene.fog = new THREE.FogExp2(0x080c10, 0.035);
+            } else {
+                scene.fog = new THREE.FogExp2(0x080c10, 0.025);
+            }
+            // Aviso
+            if (novoClima !== 'calmo') {
+                const avisos = { chuva: '🌧️ Começou a chover! A lanterna enfraquece e o Slenderman te ouve menos.', neblina: '🌫️ Neblina densa! A visibilidade caiu.' };
+                msg(avisos[novoClima] || '', 3, false);
+            }
+        }
+
+        function triggerClima() {
+            const r = Math.random();
+            let novo;
+            if (r < 0.35) novo = 'calmo';
+            else if (r < 0.65) novo = 'chuva';
+            else novo = 'neblina';
+            // Não mudar para o mesmo
+            if (novo === gameState.clima) {
+                // Tenta outro
+                const opcoes = ['calmo', 'chuva', 'neblina'].filter(c => c !== gameState.clima);
+                novo = opcoes[Math.floor(Math.random() * opcoes.length)];
+            }
+            mudarClima(novo);
+            gameState.climaTimer = 15 + Math.random() * 30; // duração do clima
+        }
+
+        // --- Alucinações ---
+        function triggerAlucinacao() {
+            if (gameState.sanidade > 40) return;
+            if (gameState.alucinacaoAtiva) return;
+            if (Math.random() > 0.01) return;
+
+            gameState.alucinacaoAtiva = true;
+            const pp = getPlayerPos();
+            // Aparece em um local aleatório próximo
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 8 + Math.random() * 12;
+            const x = pp.x + Math.cos(angle) * dist;
+            const z = pp.z + Math.sin(angle) * dist;
+            alucinacaoGrupo.position.set(x, 0, z);
+            alucinacaoGrupo.visible = true;
+            alucinacaoGrupo.lookAt(pp.x, 1.6, pp.z);
+            // Efeito sonoro
+            playBeep(300, 0.3, 0.03, 'sawtooth');
+            setTimeout(() => {
+                alucinacaoGrupo.visible = false;
+                gameState.alucinacaoAtiva = false;
+            }, 1200 + Math.random() * 1000);
+            msg('👻 Você vê algo nas sombras...', 1.5, true);
+        }
+
+        // --- Atualização do Rondante ---
+        function atualizarRondante(dt) {
+            const pp = getPlayerPos(),
+                rp = getRondantePos(),
+                dist = pp.distanceTo(rp);
+            const dir = new THREE.Vector3().subVectors(pp, rp).normalize();
+
+            if (gameState.fogueiraAtiva) {
+                const fugaDir = new THREE.Vector3().subVectors(rp, pp).normalize();
+                rondanteGrupo.position.x += fugaDir.x * 3 * dt;
+                rondanteGrupo.position.z += fugaDir.z * 3 * dt;
+                if (dist < 30) {
+                    rondanteGrupo.position.x += fugaDir.x * 2 * dt;
+                    rondanteGrupo.position.z += fugaDir.z * 2 * dt;
+                }
+                return;
+            }
+
+            const nivel = gameState.nivelPerseguidor;
+            const heat = gameState.heat;
+
+            const alertaThreshold = 15 + (nivel - 1) * 6;
+            const cacaThreshold = 40 + (nivel - 1) * 10;
+
+            let estado;
+            if (heat >= cacaThreshold) estado = 'caca';
+            else if (heat >= alertaThreshold) estado = 'alerta';
+            else estado = 'distante';
+
+            const distAlerta = config.distanciaAlerta - (nivel - 1) * 2;
+            const distCaca = config.distanciaCaca - (nivel - 1) * 1.5;
+
+            // Clima afeta a percepção
+            let modVel = 1;
+            if (gameState.clima === 'chuva') modVel = 0.7;
+            if (gameState.clima === 'neblina') modVel = 0.8;
+
+            switch (estado) {
+                case 'caca':
+                    rondanteState.velocidade = config.velocidadeBaseRondante * (1 + (nivel - 1) * 0.5) * 2.0 * modVel;
+                    rondanteState.distanciaAlvo = Math.max(1, distCaca);
+                    break;
+                case 'alerta':
+                    rondanteState.velocidade = config.velocidadeBaseRondante * (1 + (nivel - 1) * 0.3) * 1.3 * modVel;
+                    rondanteState.distanciaAlvo = Math.max(5, distAlerta + Math.random() * 6);
+                    break;
+                default:
+                    rondanteState.velocidade = config.velocidadeBaseRondante * (1 + (nivel - 1) * 0.2) * 0.6 * modVel;
+                    rondanteState.distanciaAlvo = 25 + Math.random() * 15;
+            }
+
+            if (gameState.escondido && estado !== 'caca') {
+                rondanteState.perdidoTimer += dt;
+                if (rondanteState.perdidoTimer > 2.5) {
+                    rondanteState.patrolAngle += dt * 0.4;
+                    const wx = rp.x + Math.cos(rondanteState.patrolAngle) * 15,
+                        wz = rp.z + Math.sin(rondanteState.patrolAngle) * 15;
+                    const dw = new THREE.Vector3(wx, 0, wz).sub(rp).normalize();
+                    rondanteGrupo.position.x += dw.x * rondanteState.velocidade * 0.3 * dt;
+                    rondanteGrupo.position.z += dw.z * rondanteState.velocidade * 0.3 * dt;
+                }
+            } else {
+                rondanteState.perdidoTimer = Math.max(0, rondanteState.perdidoTimer - dt * 2);
+                if (dist > rondanteState.distanciaAlvo + 2) {
+                    rondanteGrupo.position.x += dir.x * rondanteState.velocidade * dt;
+                    rondanteGrupo.position.z += dir.z * rondanteState.velocidade * dt;
+                } else if (dist < rondanteState.distanciaAlvo - 2 && estado !== 'caca') {
+                    rondanteGrupo.position.x -= dir.x * rondanteState.velocidade * 0.5 * dt;
+                    rondanteGrupo.position.z -= dir.z * rondanteState.velocidade * 0.5 * dt;
+                } else if (estado !== 'caca') {
+                    const perp = new THREE.Vector3(-dir.z, 0, dir.x);
+                    rondanteGrupo.position.x += perp.x * rondanteState.velocidade * 0.5 * dt;
+                    rondanteGrupo.position.z += perp.z * rondanteState.velocidade * 0.5 * dt;
+                }
+            }
+
+            // Evitar carro
+            const carro2D = new THREE.Vector2(carroGrupo.position.x, carroGrupo.position.z);
+            const rond2D = new THREE.Vector2(rondanteGrupo.position.x, rondanteGrupo.position.z);
+            const distCarro = rond2D.distanceTo(carro2D);
+            if (distCarro < 8.5) {
+                const fora = new THREE.Vector2().subVectors(rond2D, carro2D).normalize();
+                rondanteGrupo.position.x += fora.x * (8.5 - distCarro + 0.5);
+                rondanteGrupo.position.z += fora.y * (8.5 - distCarro + 0.5);
+            }
+
+            const lookTarget = gameState.escondido && estado !== 'caca' ?
+                new THREE.Vector3(rp.x + Math.cos(rondanteState.patrolAngle), 2, rp.z + Math.sin(rondanteState.patrolAngle)) :
+                new THREE.Vector3(pp.x, 1.6, pp.z);
+            rondanteGrupo.lookAt(lookTarget);
+
+            if (dist < 1.8 && !gameState.escondido) {
+                gameState.estado = 'game_over';
+                gameOverTela.classList.add('ativo');
+                vignette.classList.add('dead');
+                controls.unlock();
+                playBeep(60, 0.8, 0.15, 'sawtooth');
+            }
+        }
+
+        // --- Vitória ---
+        function iniciarVitoria() {
+            gameState.estado = 'vitoria';
+            vitoriaTela.classList.add('ativo');
+            controls.unlock();
+
+            const particleCount = 300;
+            const particles = new THREE.BufferGeometry();
+            const posArray = new Float32Array(particleCount * 3);
+            const velArray = [];
+            for (let i = 0; i < particleCount; i++) {
+                const radius = 5 + Math.random() * 15;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI * 2;
+                posArray[i * 3] = Math.cos(theta) * Math.sin(phi) * radius;
+                posArray[i * 3 + 1] = Math.sin(theta) * Math.sin(phi) * radius + 2;
+                posArray[i * 3 + 2] = Math.cos(phi) * radius;
+                velArray.push({
+                    x: (Math.random() - 0.5) * 2,
+                    y: (Math.random() - 0.5) * 2,
+                    z: (Math.random() - 0.5) * 2
+                });
+            }
+            particles.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const particleMat = new THREE.PointsMaterial({
+                color: 0xffdd44,
+                size: 0.2,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const particleSystem = new THREE.Points(particles, particleMat);
+            scene.add(particleSystem);
+
+            let frame = 0;
+            const animParticles = () => {
+                if (gameState.estado !== 'vitoria') return;
+                frame++;
+                const positions = particleSystem.geometry.attributes.position.array;
+                for (let i = 0; i < particleCount; i++) {
+                    positions[i * 3] += velArray[i].x * 0.02;
+                    positions[i * 3 + 1] += velArray[i].y * 0.02;
+                    positions[i * 3 + 2] += velArray[i].z * 0.02;
+                    if (Math.abs(positions[i * 3]) > 25 || Math.abs(positions[i * 3 + 1]) > 25 || Math.abs(positions[i *
+                        3 + 2]) > 25) {
+                        const radius = 5 + Math.random() * 15;
+                        const theta = Math.random() * Math.PI * 2;
+                        const phi = Math.random() * Math.PI * 2;
+                        positions[i * 3] = Math.cos(theta) * Math.sin(phi) * radius;
+                        positions[i * 3 + 1] = Math.sin(theta) * Math.sin(phi) * radius + 2;
+                        positions[i * 3 + 2] = Math.cos(phi) * radius;
+                    }
+                }
+                particleSystem.geometry.attributes.position.needsUpdate = true;
+                const angle = frame * 0.005;
+                const dist = 12;
+                camera.position.x = Math.sin(angle) * dist;
+                camera.position.z = Math.cos(angle) * dist;
+                camera.position.y = 3 + Math.sin(angle * 0.5) * 1;
+                camera.lookAt(carroGrupo.position.x, 1, carroGrupo.position.z);
+                requestAnimationFrame(animParticles);
+            };
+            animParticles();
+
+            setTimeout(() => playBeep(523, 0.3, 0.1), 200);
+            setTimeout(() => playBeep(659, 0.3, 0.1), 500);
+            setTimeout(() => playBeep(784, 0.4, 0.12), 800);
+        }
+
+        // --- Loop Principal ---
+        const clock = new THREE.Clock();
+
+        function update(dt) {
+            if (gameState.estado !== 'jogando') return;
+            gameState.tempoTotal += dt;
+
+            // Clima
+            gameState.climaTimer -= dt;
+            if (gameState.climaTimer <= 0) {
+                triggerClima();
+            }
+
+            // Atualizar clima (partículas de chuva)
+            if (rainSystem && rainSystem.visible) {
+                const pos = rainSystem.geometry.attributes.position.array;
+                for (let i = 0; i < pos.length / 3; i++) {
+                    pos[i * 3 + 1] -= 0.3;
+                    if (pos[i * 3 + 1] < 0) {
+                        pos[i * 3] = (Math.random() - 0.5) * 200;
+                        pos[i * 3 + 1] = 30 + Math.random() * 10;
+                        pos[i * 3 + 2] = (Math.random() - 0.5) * 200;
+                    }
+                }
+                rainSystem.geometry.attributes.position.needsUpdate = true;
+            }
+            if (fogSystem && fogSystem.visible) {
+                // Neblina se move lentamente
+                const pos = fogSystem.geometry.attributes.position.array;
+                for (let i = 0; i < pos.length / 3; i++) {
+                    pos[i * 3] += (Math.random() - 0.5) * 0.02;
+                    pos[i * 3 + 2] += (Math.random() - 0.5) * 0.02;
+                    if (Math.abs(pos[i * 3]) > 90) pos[i * 3] *= -0.9;
+                    if (Math.abs(pos[i * 3 + 2]) > 90) pos[i * 3 + 2] *= -0.9;
+                }
+                fogSystem.geometry.attributes.position.needsUpdate = true;
+            }
+
+            // Radio cooldown
+            if (gameState.radioCooldown > 0) {
+                gameState.radioCooldown -= dt;
+                if (gameState.radioCooldown < 0) gameState.radioCooldown = 0;
+            }
+
+            // Eventos aleatórios
+            if (gameState.tempoTotal - gameState.ultimoEvento > 25 + Math.random() * 30) {
+                gameState.ultimoEvento = gameState.tempoTotal;
+                if (Math.random() < 0.4) triggerVento();
+            }
+
+            // Vento
+            if (gameState.eventoVento) {
+                gameState.ventoTimer -= dt;
+                if (gameState.ventoTimer <= 0) {
+                    gameState.eventoVento = false;
+                    msg('O vento passou.', 2);
+                }
+            }
+
+            // Fogueira
+            if (gameState.fogueiraAtiva) {
+                gameState.fogueiraTimer -= dt;
+                if (gameState.fogueiraTimer <= 0) {
+                    gameState.fogueiraAtiva = false;
+                    msg('🔥 A fogueira se apagou.', 2);
+                }
+            }
+
+            // Mapa
+            if (gameState.mapaAtivo) {
+                gameState.mapaTimer -= dt;
+                if (gameState.mapaTimer <= 0) {
+                    gameState.mapaAtivo = false;
+                    for (const p of pecas) {
+                        if (!p.userData.coletada) {
+                            p.userData.glowMesh.material.color.setHex(p.userData.glowMesh.material.color.getHex());
+                            p.userData.glowMesh.material.opacity = 0.25;
+                        }
+                    }
+                    msg('🗺️ O mapa expirou.', 2);
+                }
+            }
+
+            // Movimento
+            if (controls.isLocked) {
+                const speed = gameState.correndo ? 7.5 : gameState.agachado ? 2.0 : 4.5;
+                const moveDir = new THREE.Vector3();
+                if (keys['w'] || keys['arrowup']) moveDir.z -= 1;
+                if (keys['s'] || keys['arrowdown']) moveDir.z += 1;
+                if (keys['a'] || keys['arrowleft']) moveDir.x -= 1;
+                if (keys['d'] || keys['arrowright']) moveDir.x += 1;
+                if (moveDir.length() > 0) {
+                    moveDir.normalize();
+                    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    const rgt = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                    fwd.y = 0;
+                    rgt.y = 0;
+                    fwd.normalize();
+                    rgt.normalize();
+                    const mov = new THREE.Vector3().addScaledVector(fwd, -moveDir.z).addScaledVector(rgt, moveDir.x)
+                        .normalize().multiplyScalar(speed * dt);
+                    const nova = camera.position.clone().add(mov);
+                    let colide = false;
+                    for (const t of treeTrunkPositions) {
+                        if (Math.sqrt((nova.x - t.x) ** 2 + (nova.z - t.z) ** 2) < t.radius + 0.4) { colide = true; break; }
+                    }
+                    if (Math.sqrt((nova.x - carroGrupo.position.x) ** 2 + (nova.z - carroGrupo.position.z) ** 2) < 3.5)
+                        colide = true;
+                    if (Math.sqrt((nova.x - cabanaGrupo.position.x) ** 2 + (nova.z - cabanaGrupo.position.z) ** 2) < 4)
+                        colide = true;
+                    if (Math.sqrt((nova.x - poco.position.x) ** 2 + (nova.z - poco.position.z) ** 2) < 2) colide = true;
+                    if (!colide) {
+                        camera.position.x = nova.x;
+                        camera.position.z = nova.z;
+                    }
+                }
+                gameState.agachado = keys['c'];
+                const altAlvo = gameState.agachado ? 0.7 : 1.6;
+                camera.position.y += (altAlvo - camera.position.y) * 8 * dt;
+                gameState.correndo = keys['shift'] && moveDir.length() > 0 && !gameState.agachado;
+
+                // Heat
+                let hd = 0;
+                if (gameState.correndo) hd += 8 * dt * config.multiplicadorHeat;
+                if (gameState.lanternaAcesa) hd += 3 * dt * config.multiplicadorHeat;
+                if (gameState.agachado && gameState.escondido) hd -= 15 * dt;
+                else if (gameState.agachado && !gameState.correndo) hd -= 6 * dt;
+                else if (!gameState.correndo && !gameState.lanternaAcesa) hd -= 3 * dt;
+
+                // Clima afeta heat
+                if (gameState.clima === 'chuva') hd *= 0.7;
+                if (gameState.clima === 'neblina') hd *= 0.8;
+
+                const rp = getRondantePos(),
+                    pp = getPlayerPos();
+                const dirR = new THREE.Vector3().subVectors(rp, pp).normalize();
+                const camF = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                camF.y = 0;
+                camF.normalize();
+                const dot = dirR.dot(camF);
+                const dr = distRondante();
+                if (dot > 0.5 && dr < 40) hd += 2 * dt * dot * config.multiplicadorHeat;
+
+                if (gameState.eventoVento) hd *= 0.6;
+
+                gameState.heat = Math.max(0, Math.min(100, gameState.heat + hd));
+
+                // Escondido
+                let pertoArbusto = false;
+                for (const a of arbustos) {
+                    if (Math.sqrt((pp.x - a.x) ** 2 + (pp.z - a.z) ** 2) < a.radius) { pertoArbusto = true; break; }
+                }
+                gameState.escondido = gameState.agachado && pertoArbusto;
+
+                // Conquista: escondido por 30s
+                if (gameState.escondido) {
+                    if (!gameState._escondidoTimer) gameState._escondidoTimer = 0;
+                    gameState._escondidoTimer += dt;
+                    if (gameState._escondidoTimer >= 30) {
+                        desbloquearConquista('escondido', 'Escondido');
+                        gameState._escondidoTimer = 0;
+                    }
+                } else {
+                    gameState._escondidoTimer = 0;
+                }
+
+                // Bateria
+                if (gameState.lanternaAcesa) {
+                    let consumo = config.consumoBateria;
+                    if (gameState.eventoVento) consumo *= 1.5;
+                    if (gameState.clima === 'chuva') consumo *= 1.3;
+                    gameState.bateria = Math.max(0, gameState.bateria - consumo * dt);
+                    if (gameState.bateria <= 0) {
+                        gameState.lanternaAcesa = false;
+                        msg('🔋 Lanterna sem bateria!', 2);
+                    }
+                } else {
+                    gameState.bateria = Math.min(gameState.bateriaMax, gameState.bateria + 1.5 * dt);
+                }
+
+                // Sanidade
+                let perdaSanidade = 0;
+                if (dr < 15) perdaSanidade += config.perdaSanidade * dt * (1 - dr / 15);
+                if (!gameState.lanternaAcesa && dr < 25) perdaSanidade += 0.2 * dt;
+                if (gameState.escondido) perdaSanidade *= 0.3;
+                if (gameState.fogueiraAtiva) perdaSanidade *= 0.2;
+                if (gameState.clima === 'neblina') perdaSanidade *= 1.2;
+                gameState.sanidade = Math.max(0, gameState.sanidade - perdaSanidade);
+                if (gameState.sanidade <= 0) {
+                    gameState.sanidade = 30;
+                    msg('😵 Você desmaiou de medo! Perdeu uma peça.', 3, true);
+                    for (const p of pecas) {
+                        if (p.userData.coletada) {
+                            p.userData.coletada = false;
+                            p.visible = true;
+                            gameState.pecasColetadas--;
+                            pecasContador.textContent = `${gameState.pecasColetadas}/${gameState.totalPecas}`;
+                            break;
+                        }
+                    }
+                }
+
+                // Alucinações
+                if (gameState.sanidade < 40) {
+                    triggerAlucinacao();
+                }
+                playSussurro();
+
+                // Lanterna 3D
+                const camWorldPos = new THREE.Vector3();
+                const camWorldDir = new THREE.Vector3();
+                camera.getWorldPosition(camWorldPos);
+                camera.getWorldDirection(camWorldDir);
+
+                lanternaSpot.position.copy(camWorldPos);
+                lanternaSpot.target.position.copy(camWorldPos).addScaledVector(camWorldDir, 30);
+                lanternaSpot.target.updateMatrixWorld();
+                fillLight.position.copy(camWorldPos).addScaledVector(camWorldDir, 3);
+
+                const bpct = gameState.bateria / gameState.bateriaMax;
+                if (gameState.lanternaAcesa) {
+                    const flicker = (gameState.bateria < 25 && Math.random() < 0.05) || (gameState.eventoVento && Math
+                        .random() < 0.1) || (gameState.clima === 'chuva' && Math.random() < 0.08);
+                    let intensidade = 55 * bpct;
+                    if (gameState.clima === 'chuva') intensidade *= 0.6;
+                    if (gameState.clima === 'neblina') intensidade *= 0.7;
+                    lanternaSpot.intensity = flicker ? 0 : intensidade;
+                    lanternaSpot.color.setHex(gameState.bateria < 25 ? 0xff8844 : 0xffe8a0);
+                    fillLight.intensity = flicker ? 0 : 6 * bpct;
+                } else {
+                    lanternaSpot.intensity = 0;
+                    fillLight.intensity = 0;
+                }
+                lanternaIcone.textContent = gameState.lanternaAcesa ? '🔦' : '💡';
+            }
+
+            // Atualiza perseguidor
+            atualizarRondante(dt);
+
+            // HUD
+            bateriaBar.style.width = (gameState.bateria / gameState.bateriaMax * 100) + '%';
+            bateriaTexto.textContent = Math.round(gameState.bateria) + '%';
+            bateriaBar.classList.toggle('low', gameState.bateria < 25);
+            vignette.classList.toggle('danger', distRondante() < 20);
+
+            sanidadeFill.style.width = gameState.sanidade + '%';
+            sanidadeTexto.textContent = Math.round(gameState.sanidade) + '%';
+            sanidadeFill.classList.toggle('low', gameState.sanidade < 30);
+
+            indicadorEscondido.style.opacity = gameState.escondido ? '1' : '0';
+
+            playHeartbeat();
+
+            if (gameState.mensagemTimer > 0) {
+                gameState.mensagemTimer -= dt;
+                if (gameState.mensagemTimer <= 0) esconderMsg();
+            }
+
+            // Anima objetos
+            for (const p of pecas) {
+                if (!p.userData.coletada && p.visible) {
+                    p.rotation.y += dt * 1.5;
+                    p.userData.glowMesh.material.opacity = 0.2 + Math.sin(gameState.tempoTotal * 3) * 0.1;
+                    if (gameState.mapaAtivo) {
+                        p.userData.glowMesh.material.color.setHex(0x44ff88);
+                        p.userData.glowMesh.material.opacity = 0.8 + Math.sin(gameState.tempoTotal * 5) * 0.2;
+                    }
+                }
+            }
+            for (const pl of pilhas) {
+                if (!pl.userData.coletada && pl.visible) pl.rotation.y += dt * 2;
+            }
+            for (const item of itensEspeciais) {
+                if (!item.userData.coletado && item.visible) {
+                    item.rotation.y += dt * 1.2;
+                    item.userData.glowMesh.material.opacity = 0.2 + Math.sin(gameState.tempoTotal * 4) * 0.1;
+                }
+            }
+            for (const n of notas) {
+                if (!n.userData.coletada && n.visible) {
+                    n.rotation.y += dt * 0.8;
+                }
+            }
+
+            // Limites
+            const lim = 110;
+            camera.position.x = Math.max(-lim, Math.min(lim, camera.position.x));
+            camera.position.z = Math.max(-lim, Math.min(lim, camera.position.z));
+            rondanteGrupo.position.x = Math.max(-lim, Math.min(lim, rondanteGrupo.position.x));
+            rondanteGrupo.position.z = Math.max(-lim, Math.min(lim, rondanteGrupo.position.z));
+
+            drawFlashlightOverlay(gameState.lanternaAcesa, gameState.bateria, gameState.eventoVento, gameState.clima);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            update(Math.min(clock.getDelta(), 0.2));
+            renderer.render(scene, camera);
+        }
+
+        // --- Iniciar Jogo ---
+        function iniciarJogo() {
+            initAudio();
+            gameState.estado = 'jogando';
+            menuTela.classList.add('escondido');
+            historiaTela.classList.remove('visivel');
+            dicaControles.style.opacity = '1';
+            drawFlashlightOverlay(false, 100, false, 'calmo');
+            msg('🔦 Encontre as 6 peças do carro... e cuidado com o Slenderman.', 5);
+            setTimeout(() => {
+                if (gameState.estado === 'jogando') controls.lock();
+            }, 500);
+        }
+
+        // --- Reiniciar ---
+        window.reiniciarJogo = function () {
+            gameState.estado = 'jogando';
+            gameState.pecasColetadas = 0;
+            gameState.bateria = gameState.bateriaMax;
+            gameState.lanternaAcesa = false;
+            gameState.heat = 0;
+            gameState.escondido = false;
+            gameState.mensagemTimer = 0;
+            gameState.nivelPerseguidor = 1;
+            gameState.tempoTotal = 0;
+            gameState.sanidade = gameState.sanidadeMax;
+            gameState.mapaAtivo = false;
+            gameState.mapaTimer = 0;
+            gameState.fogueiraAtiva = false;
+            gameState.fogueiraTimer = 0;
+            gameState.eventoVento = false;
+            gameState.ventoTimer = 0;
+            gameState.ultimoEvento = 0;
+            gameState.notasColetadas = 0;
+            gameState.radioDisponivel = false;
+            gameState.radioUsado = false;
+            gameState.radioCooldown = 0;
+            gameState.chaveCabana = false;
+            gameState.cabanaAberta = false;
+            gameState.clima = 'calmo';
+            gameState.climaTimer = 0;
+            gameState.alucinacaoAtiva = false;
+            gameState._radioCount = 0;
+            gameState._escondidoTimer = 0;
+            gameState.tempoFugiu = 0;
+            // Reset conquistas (opcional, mantém para progresso)
+            // Se quiser resetar: gameState.conquistas = {...} mas vou manter
+
+            pecasContador.textContent = '0/6';
+            nivelRondante.textContent = '1';
+            bateriaBar.style.width = '100%';
+            bateriaTexto.textContent = '100%';
+            bateriaBar.classList.remove('low');
+            sanidadeFill.style.width = '100%';
+            sanidadeTexto.textContent = '100%';
+            sanidadeFill.classList.remove('low');
+            notasContador.textContent = `0/${gameState.totalNotas}`;
+            climaTexto.textContent = '🌤️ Calmo';
+            gameOverTela.classList.remove('ativo');
+            vitoriaTela.classList.remove('ativo');
+            vignette.classList.remove('danger', 'dead');
+            esconderMsg();
+            indicadorEscondido.style.opacity = '0';
+            menuTela.classList.add('escondido');
+            alucinacaoGrupo.visible = false;
+            if (rainSystem) rainSystem.visible = false;
+            if (fogSystem) fogSystem.visible = false;
+            scene.fog = new THREE.FogExp2(0x080c10, 0.025);
+
+            pecas.forEach(p => {
+                p.userData.coletada = false;
+                p.visible = true;
+                p.userData.glowMesh.material.color.setHex(p.userData.glowMesh.material.color.getHex());
+                p.userData.glowMesh.material.opacity = 0.25;
+                // Reposiciona peças originais
+                const orig = [
+                    { x: 20, z: -25 }, { x: -30, z: -30 }, { x: 40, z: 30 },
+                    { x: -40, z: -20 }, { x: 10, z: 45 }, { x: -10, z: -45 }
+                ];
+                const idx = pecas.indexOf(p);
+                if (idx >= 0 && idx < orig.length) {
+                    p.position.set(orig[idx].x, 0.5, orig[idx].z);
+                    p.userData.glowMesh.position.copy(p.position);
+                }
+            });
+            pilhas.forEach(p => {
+                p.userData.coletada = false;
+                p.visible = true;
+            });
+            itensEspeciais.forEach(item => {
+                item.userData.coletado = false;
+                item.visible = true;
+            });
+            notas.forEach(n => {
+                n.userData.coletada = false;
+                n.visible = true;
+            });
+            cabanaAberta3D = false;
+            // Fecha a cabana (visual)
+            // Não temos como reverter a porta, mas tudo bem
+
+            camera.position.set(0, 1.6, 8);
+            camera.rotation.y = Math.PI;
+            rondanteGrupo.position.set(50, 0, 50);
+            rondanteState.velocidade = config.velocidadeBaseRondante;
+            rondanteState.distanciaAlvo = 35;
+            rondanteState.patrolAngle = 0;
+            rondanteState.perdidoTimer = 0;
+            rondanteState.nivelAtual = 1;
+            rondanteGrupo.scale.set(1, 1, 1);
+            rondanteState.particulas.visible = false;
+            rondanteState.olhos.forEach(o => o.material.color.setHex(0x000000));
+
+            lanternaSpot.intensity = 0;
+            fillLight.intensity = 0;
+            lanternaIcone.textContent = '💡';
+            drawFlashlightOverlay(false, 100, false, 'calmo');
+
+            // Remove partículas extras
+            scene.children.forEach(child => {
+                if (child.isPoints && child.material.color && child.material.color.getHex() === 0xffdd44) {
+                    scene.remove(child);
+                }
+                // Remove fogueiras antigas
+                if (child.isPoints && child.material.vertexColors) {
+                    scene.remove(child);
+                }
+            });
+
+            initAudio();
+            setTimeout(() => {
+                if (gameState.estado === 'jogando') controls.lock();
+            }, 300);
+        };
+
+        // --- Eventos UI ---
+        btnJogar.addEventListener('click', () => {
+            menuTela.classList.add('escondido');
+            historiaTela.classList.add('visivel');
+        });
+
+        btnContinuarHistoria.addEventListener('click', () => {
+            iniciarJogo();
+        });
+
+        btnControles.addEventListener('click', () => {
+            controlesModal.classList.add('visivel');
+            fundoModal.classList.add('visivel');
+        });
+        btnFecharControles.addEventListener('click', () => {
+            controlesModal.classList.remove('visivel');
+            fundoModal.classList.remove('visivel');
+        });
+        fundoModal.addEventListener('click', () => {
+            controlesModal.classList.remove('visivel');
+            fundoModal.classList.remove('visivel');
+        });
+
+        btnSobre.addEventListener('click', () => {
+            alert(
+                '🌲 RASTRO DA ESCURIDÃO - Slenderman Edition\n\nSeu carro quebrou em uma floresta amaldiçoada.\nEncontre 6 peças para consertá-lo e fugir.\n\nO Slenderman espreita nas sombras...\n\nUse arbustos para se esconder.\nA lanterna atrai o perigo.\n\nItens especiais:\n🗺️ Mapa: revela todas as peças por 10s\n🔥 Isqueiro: acende uma fogueira que afasta o Slenderman\n📻 Rádio: distrai o Slenderman por 10s\n🔑 Chave: abre a cabana (contém uma peça extra)\n📜 Notas: contam a história e desbloqueiam conquistas\n\nBoa sorte.');
+        });
+
+        btnConquistas.addEventListener('click', () => {
+            conquistasPopup.classList.toggle('visivel');
+        });
+        btnFecharConq.addEventListener('click', () => {
+            conquistasPopup.classList.remove('visivel');
+        });
+
+        // Dificuldade
+        botoesDificuldade.forEach(btn => {
+            btn.addEventListener('click', () => {
+                botoesDificuldade.forEach(b => b.classList.remove('selecionado'));
+                btn.classList.add('selecionado');
+                gameState.dificuldade = btn.dataset.dificuldade;
+                config = dificuldadeConfig[gameState.dificuldade];
+                gameState.bateriaMax = gameState.dificuldade === 'facil' ? 150 : gameState.dificuldade === 'medio' ?
+                    100 : 80;
+                gameState.bateria = Math.min(gameState.bateria, gameState.bateriaMax);
+                if (gameState.estado === 'jogando') {
+                    atualizarNivelPerseguidor();
+                }
+            });
+        });
+
+        // Redimensionamento
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            resizeFlCanvas();
+        });
+
+        // Inicialização
+        animate();
+        dicaControles.style.opacity = '0';
+        console.log('🌲 Slenderman Edition com novas mecânicas!');
+    </script>
+</body>
+
+</html>
